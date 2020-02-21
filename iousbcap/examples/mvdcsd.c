@@ -4,23 +4,20 @@
 	Licensed under the MIT License
  */
 #include <stdio.h>
-#include <stdlib.h>
-#include <CoreFoundation/CoreFoundation.h>
-#include "../mvusblib.h"
-#include "../mvftdi.h"
+#include "mvusblib.h"
+#include "mvftdi.h"
 
-mvftdi_ctx_t ftdi = NULL;
-
-int blinkenlights() {
+void blinkenlights(mvftdi_ctx_t *ftdi) {
 	kern_return_t result = KERN_SUCCESS;
 	long int tab[8] = {0xF2, 0xFA, 0xFB, 0xF9, 0xF1, 0xF3, 0xFB, 0xF9};
     int i = 0;
     while (i<=7) {
-        result = mvftdi_set_bitmode(ftdi, tab[i], BITMODE_CBUS); // 0x20
-        if (i == 7) i = 0;
+        result = mvftdi_set_bitmode(*ftdi, tab[i], BITMODE_CBUS); // 0x20
         i++;
+		if (i == 8) i = 0;
+		usleep(300000); // .3 seconds == 300,000 microseconds
+        
     }
-	return KERN_SUCCESS;
 }
 
 int callbackDCSDDevice(IOUSBDeviceInterface** iface) {
@@ -33,8 +30,9 @@ int callbackDCSDDevice(IOUSBDeviceInterface** iface) {
 
     fprintf(stderr, "%s: Got a connection to the device.\n", __func__);
 
-    ftdi = mvftdi_open(iface);
-    return result;
+    mvftdi_ctx_t ftdi = mvftdi_open(iface);
+	blinkenlights(&ftdi);
+	return 0;
 }
 
 
@@ -50,6 +48,7 @@ int main(int argc, char *argv[]) {
     
     while(KERN_SUCCESS != err){
         err = mvusblib_awaitdevice(vid, pid, locationid, (mvusblib_awaitcallback_t)callbackDCSDDevice);
+		//The callback probably messes up and segfaults
         usleep(100);
     }
     
